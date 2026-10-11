@@ -17,10 +17,18 @@ import { setupSocketHandlers } from './sockets/socketHandler.js';
 const app = express();
 const server = http.createServer(app);
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (config.nodeEnv === 'development') return true;
+  if (origin === config.frontendUrl) return true;
+  if (/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin)) return true;
+  return false;
+};
+
 // Initialize Socket.IO
 const io = new SocketIOServer(server, {
   cors: {
-    origin: [config.frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
   },
 });
@@ -38,8 +46,7 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman) or matching frontend
-      if (!origin || origin === config.frontendUrl || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Blocked by CORS'));
